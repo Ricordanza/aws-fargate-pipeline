@@ -1,0 +1,42 @@
+{
+  "executionRoleArn": "arn:aws:iam::495109114833:role/cicd-s-dev-task",
+  "containerDefinitions": [
+    {
+      "name": "web",
+      "image": "<IMAGE1_NAME>",
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "hostPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true
+    },
+    {
+      "name": "x-ray",
+      "image": "amazon/aws-xray-daemon",
+      "portMappings": [
+        {
+          "containerPort": 2000,
+          "hostPort": 2000,
+          "protocol": "udp"
+        }
+      ],
+      "Environment": [
+        {
+          "Name": "AWS_XRAY_DAEMON_ADDRESS",
+          "Value": ""
+        }
+      ],
+      "essential": true
+    }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512",
+  "family": "web"
+}

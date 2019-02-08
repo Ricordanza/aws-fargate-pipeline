@@ -1,0 +1,561 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Fargate CI/CD sample resource component.
+
+Parameters:
+
+  Stage: 
+    Type: String
+    Default: dev
+    Description: Deploy stage
+
+  AppName: 
+    Type: String
+    Default: cicd-s
+    Description: Application name
+
+  BranchName:
+    Type: String
+    Default: master
+    Description: Use branch name
+
+  Author:
+    Type: String
+    Default: "ao"
+    Description: System author
+
+  AquaMicroScannerToken:
+    Type: String
+    Default: "Mzg4ZTRkMGI1NTQ3"
+    Description: Aqua MicroScanner's token
+
+  Vpc: 
+    Type: String
+    Default: "" 
+    Description: System VPC
+
+  PublicSubnet1: 
+    Type: String
+    Default: ""
+    Description: System Public Subnet 1
+
+  PublicSubnet2: 
+    Type: String
+    Default: ""
+    Description: System Public Subnet 2
+
+  PrivateSubnet1: 
+    Type: String
+    Default: ""
+    Description: System Private Subnet 1
+
+  PrivateSubnet2: 
+    Type: String
+    Default: ""
+    Description: System Private Subnet 2
+
+  VpcEndPoint: 
+    Type: String
+    Default: ""
+    Description: System VPC End Point
+
+  VpcCider: 
+    Type: "String"
+    Default: ""
+    Description: System vpc CIDER
+
+Conditions:
+  IsVpcParameter: !Not [!Equals [!Ref Vpc, ""]]
+  IsPublicSubnet1Parameter: !Not [!Equals [!Ref PublicSubnet1, ""]]
+  IsPublicSubnet2Parameter: !Not [!Equals [!Ref PublicSubnet2, ""]]
+  IsPrivateSubnet1Parameter: !Not [!Equals [!Ref PrivateSubnet1, ""]]
+  IsPrivateSubnet2Parameter: !Not [!Equals [!Ref PrivateSubnet2, ""]]
+  IsVpcEndPointParameter: !Not [!Equals [!Ref VpcEndPoint, ""]]
+  IsVpcCiderParameter: !Not [!Equals [!Ref VpcCider, ""]]
+
+Resources:
+
+  #############################################
+  # Bucket
+  #############################################
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AppName}-${Stage}
+
+  #############################################
+  # Code Repository
+  #############################################
+
+  CodeRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties: 
+      RepositoryDescription: !Sub ${AppName}-${Stage}
+      RepositoryName: !Sub ${AppName}-${Stage}
+
+  #############################################
+  # Container Repository
+  #############################################
+
+  ContainerRepository:
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: !Sub ${AppName}-${Stage}
+
+  #############################################
+  # Application LoadBalancer
+  #############################################
+
+  ALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub ${AppName}-${Stage} ALB security group
+      GroupName: !Sub ${AppName}-${Stage}-alb-sg
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          Description: VPC access
+          CidrIp: !If [IsVpcCiderParameter, !Ref VpcCider, {"Fn::ImportValue": !Join [ "-", [!Ref AppName, !Ref Stage, vpc, cider] ]}]
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          Description: Main access
+          CidrIp: 210.227.234.114/32
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          Description: Test access
+          CidrIp: 210.227.234.114/32
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-${Stage}-alb-sg
+      VpcId: !If [IsVpcParameter, !Ref Vpc, {"Fn::ImportValue": !Join [ "-", [!Ref AppName, !Ref Stage, vpc] ]}]
+
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${AppName}-${Stage}
+      SecurityGroups:
+        - !Ref ALBSG
+      Subnets:
+        - !If [IsPublicSubnet1Parameter, !Ref PublicSubnet1, {"Fn::ImportValue": !Join [ "-", [!Ref AppName, !Ref Stage, public, 1] ]}]
+        - !If [IsPublicSubnet2Parameter, !Ref PublicSubnet2, {"Fn::ImportValue": !Join [ "-", [!Ref AppName, !Ref Stage, public, 2] ]}]
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${AppName}-${Stage}-service-1
+      VpcId: !If [IsVpcParameter, !Ref Vpc, {"Fn::ImportValue": !Join [ "-", [!Ref AppName, !Ref Stage, vpc] ]}]
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  #############################################
+  # Code Build
+  #############################################
+
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      RoleName: !Sub ${AppName}-${Stage}-build
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AWSCodeCommitReadOnly
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${AppName}-${Stage}-build
+      ServiceRole: !Ref BuildRole
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/docker:18.09.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: IMAGE_REPOSITORY_NAME
+            Type: PLAINTEXT
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ContainerRepository}
+          - Name: AQUA_MSCAN_TOKEN
+            Type: PLAINTEXT
+            Value: !Ref AquaMicroScannerToken
+          - Name: TASK_ARN
+            Type: PLAINTEXT
+            Value: !GetAtt TaskRole.Arn
+          - Name: APPNAME_STAGE
+            Type: PLAINTEXT
+            Value: !Sub ${AppName}-${Stage} 
+      Source:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 30
+
+  #############################################
+  # Code Deploy
+  #############################################
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codedeploy.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      RoleName: !Sub ${AppName}-${Stage}-deploy
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeDeployRoleForECSLimited
+
+  DeployPolicies: 
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: !Sub ${AppName}-${Stage}-deploy
+      PolicyDocument: 
+        Version: 2012-10-17
+        Statement: 
+          - Action: 
+              - iam:PassRole
+            Resource: !GetAtt TaskRole.Arn
+            Effect: Allow
+      Roles:
+        - !Ref DeployRole
+
+  # HACK 2019/01/29 現時点ではECSをサポートしていないのでアプリケーション以降はUIを使って手で作成
+  # The destination platform type for the deployment (Lambda or Server).
+  # https://docs.aws.amazon.com/codedeploy/latest/APIReference/API_CreateApplication.html#CodeDeploy-CreateApplication-request-computePlatform
+  # CodeDeployApplication:
+  #   Type: AWS::CodeDeploy::Application
+  #   Properties:
+  #     ApplicationName: !Sub ${AppName}-${Stage}
+  #     ComputePlatform: ECS
+
+  #############################################
+  # Code Pipeline
+  #############################################
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      RoleName: !Sub ${AppName}-${Stage}-pipeline
+
+  PipelinePolicies: 
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: !Sub ${AppName}-${Stage}-pipeline
+      PolicyDocument: 
+        Version: 2012-10-17
+        Statement: 
+          - Action: 
+              - iam:PassRole
+            Resource: "*"
+            Effect: Allow
+            Condition: 
+              StringEqualsIfExists: 
+                iam:PassedToService: 
+                  - cloudformation.amazonaws.com
+                  - elasticbeanstalk.amazonaws.com
+                  - ec2.amazonaws.com
+                  - ecs-tasks.amazonaws.com
+          - Action: 
+              - codecommit:CancelUploadArchive
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:UploadArchive
+              - codedeploy:CreateDeployment
+              - codedeploy:GetApplication
+              - codedeploy:GetApplicationRevision
+              - codedeploy:GetDeployment
+              - codedeploy:GetDeploymentConfig
+              - codedeploy:RegisterApplicationRevision
+              - elasticbeanstalk:*
+              - ec2:*
+              - elasticloadbalancing:*
+              - autoscaling:*
+              - cloudwatch:*
+              - s3:*
+              - sns:*
+              - cloudformation:*
+              - rds:*
+              - sqs:*
+              - ecs:*
+              - ecr:*
+              - lambda:InvokeFunction
+              - lambda:ListFunctions
+              - opsworks:CreateDeployment
+              - opsworks:DescribeApps
+              - opsworks:DescribeCommands
+              - opsworks:DescribeDeployments
+              - opsworks:DescribeInstances
+              - opsworks:DescribeStacks
+              - opsworks:UpdateApp
+              - opsworks:UpdateStack
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - devicefarm:ListProjects
+              - devicefarm:ListDevicePools
+              - devicefarm:GetRun
+              - devicefarm:GetUpload
+              - devicefarm:CreateUpload
+              - devicefarm:ScheduleRun
+              - servicecatalog:ListProvisioningArtifacts
+              - servicecatalog:CreateProvisioningArtifact
+              - servicecatalog:DescribeProvisioningArtifact
+              - servicecatalog:DeleteProvisioningArtifact
+              - servicecatalog:UpdateProduct
+            Resource: "*"
+            Effect: Allow
+      Roles:
+        - !Ref PipelineRole
+
+  Pipeline: 
+    Type: AWS::CodePipeline::Pipeline
+    Properties: 
+      Name: !Sub ${AppName}-${Stage}-pipeline
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore: 
+          Type: S3
+          Location: !Ref Bucket
+      Stages: 
+        - Name: Source
+          Actions: 
+            - Name: SourceAction
+              ActionTypeId: 
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              OutputArtifacts: 
+                - Name: SourceArtifact
+              Configuration: 
+                RepositoryName: !GetAtt CodeRepository.Name 
+                BranchName: !Ref BranchName
+              RunOrder: 1
+        - Name: Build
+          Actions:
+          - Name: BuildAction
+            ActionTypeId: 
+              Category: Build
+              Owner: AWS
+              Version: 1
+              Provider: CodeBuild
+            InputArtifacts: 
+              - Name: SourceArtifact
+            OutputArtifacts: 
+              - Name: BuildArtifact
+            Configuration: 
+              ProjectName: !Ref CodeBuildProject
+            RunOrder: 1
+        - Name: Deploy
+          Actions:
+          - Name: DeployAction
+            ActionTypeId: 
+              Category: Deploy
+              Owner: AWS
+              Version: 1
+              Provider: CodeDeployToECS
+            Configuration:
+              ApplicationName: !Sub AppECS-${AppName}-${Stage}-service
+              DeploymentGroupName: !Sub DgpECS-${AppName}-${Stage}-service
+              Image1ArtifactName: BuildArtifact
+              Image1ContainerName: IMAGE1_NAME
+              TaskDefinitionTemplateArtifact: SourceArtifact
+              TaskDefinitionTemplatePath: taskdef.json
+              AppSpecTemplateArtifact: SourceArtifact
+              AppSpecTemplatePath: appspec.yaml
+            InputArtifacts:
+              - Name: SourceArtifact
+              - Name: BuildArtifact
+            RunOrder: 1
+
+  #############################################
+  # Fargate cluster
+  #############################################
+
+  FargateCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${AppName}-${Stage}
+
+  #############################################
+  # Fargate TaskDefinition
+  #############################################
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      RoleName: !Sub ${AppName}-${Stage}-task
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
+  TaskPolicies: 
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: !Sub ${AppName}-${Stage}-task
+      PolicyDocument: 
+        Version: 2012-10-17
+        Statement: 
+          - Action: 
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Resource: "*"
+            Effect: Allow
+      Roles:
+        - !Ref TaskRole
+
+  FargateTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: 256
+      ExecutionRoleArn: !GetAtt TaskRole.Arn
+      Family: !Sub ${AppName}-${Stage}-task
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Name: web
+          Image: nginx
+          Essential: true
+          MemoryReservation: 128
+          PortMappings:
+            - HostPort: 80
+              Protocol: tcp
+              ContainerPort: 80
+        - Name: x-ray
+          Image: amazon/aws-xray-daemon
+          MemoryReservation: 128
+          PortMappings:
+            - HostPort: 2000
+              Protocol: udp
+              ContainerPort: 2000
+
+  #############################################
+  # Fargate Service
+  #############################################
+
+  FargateServiceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub ${AppName}-${Stage} Fargate service security group
+      GroupName: !Sub ${AppName}-${Stage}-service-sg
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          Description: ALB access
+          SourceSecurityGroupId: !GetAtt ALBSG.GroupId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-${Stage}-service-sg
+      VpcId: !If [IsVpcParameter, !Ref Vpc, {"Fn::ImportValue": !Join [ "-", [!Ref AppName, !Ref Stage, vpc] ]}]
+
+  # HACK 2019/01/29 現時点ではECSをサポートしていないのでアプリケーション以降はUIを使って手で作成
+  # The destination platform type for the deployment (Lambda or Server).
+  # https://docs.aws.amazon.com/codedeploy/latest/APIReference/API_CreateApplication.html#CodeDeploy-CreateApplication-request-computePlatform
+  # FargateService:
+  #     Type: AWS::ECS::Service
+  #     DependsOn: ALB
+  #     Properties:
+  #       Cluster: !GetAtt FargateCluster.Arn
+  #       DesiredCount: 0 # HACK PiplineでBlue/Green Deploymentを実現するため、サービスの枠だけまずは用意
+  #       LaunchType: FARGATE
+  #       LoadBalancers:
+  #         - TargetGroupArn: !Ref TargetGroup
+  #           ContainerPort: 80
+  #           ContainerName: !Sub ${AppName}-${Stage}-app
+  #       NetworkConfiguration:
+  #         AwsvpcConfiguration:
+  #           AssignPublicIp: ENABLED 
+  #           SecurityGroups:
+  #             - !Ref FargateServiceSG
+  #           Subnets:
+  #             - !If [IsPublicSubnet1Parameter, !Ref PublicSubnet1, {"Fn::ImportValue": !Join [ "-", [!Ref AppName, !Ref Stage, public, 1] ]}]
+  #             - !If [IsPublicSubnet2Parameter, !Ref PublicSubnet2, {"Fn::ImportValue": !Join [ "-", [!Ref AppName, !Ref Stage, public, 2] ]}]
+  #       ServiceName: !Sub ${AppName}-${Stage}-service
+  #       TaskDefinition: !Ref FargateTaskDefinition
+
+Outputs:
+
+  ALBDNSName:
+    Description: ALB DNS name.
+    Value: !GetAtt ALB.DNSName
+
+  CodeRepositoryHttpUrl:
+    Description: Code repository clone http url.
+    Value: !GetAtt CodeRepository.CloneUrlHttp
+
+  CodeRepositorySshUrl:
+    Description: Code repository clone ssh url.
+    Value: !GetAtt CodeRepository.CloneUrlSsh
+
+  BranchName:
+    Description: Use branch.
+    Value: !Ref BranchName
+
+  ContainerRepository:
+    Description: Container repository.
+    Value: !Ref ContainerRepository
+
+  Bucket:
+    Description: Bucket.
+    Value: !Ref Bucket
