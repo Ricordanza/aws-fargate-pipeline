@@ -21,7 +21,7 @@ echo "delete deploy application"
 aws deploy delete-application --application-name AppECS-$SYS_NAME-service
 
 echo "delete target group 2"
-T_G_ARN=$(aws elbv2 describe-target-groups --names cicd-s-dev-service-2 --query 'TargetGroups[].TargetGroupArn' --output text)
+T_G_ARN=$(aws elbv2 describe-target-groups --names $SYS_NAME-service-2 --query 'TargetGroups[].TargetGroupArn' --output text)
 aws elbv2 delete-target-group --target-group-arn $T_G_ARN
 
 echo "delete resource stack"
