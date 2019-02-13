@@ -22,10 +22,6 @@ sedi -e "s!AWS_ID!$AWS_ID!g" ../taskdef.json
 sedi -e "s!APPNAME!$NAME!g" ../taskdef.json
 sedi -e "s!STAGE!$STAGE!g" ../taskdef.json
 
-# 設定ファイル化
-mv taskdef.template taskdef.json
-mv appspec.template appspec.yaml
-
 popd
 
 exit 0

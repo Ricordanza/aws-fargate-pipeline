@@ -75,7 +75,7 @@ $ git commit -m "first commit"
 $ git push origin master
 ```
 これでmasterへのコードの変更を起点としてCodePipeline({$NAME}-{$STAGE}-pipeline)が動き出す  
-CodeDeployで処理中で止まったままになるがこれはBlue/Greenのトラフィックを切り替えてから旧タスクを削除するまでがCodeDeployの職責なので作った状態であれば、旧タスクの削除まで1時間時間がかかる  
+CodeDeployで処理中で止まったままになるがこれはBlue/Greenのトラフィックを切り替えてから旧タスクを削除するまでがCodeDeployの職責なので作った状態であれば、旧タスクの削除まで1時間時間がかかる  
 この辺りはアプリケーションの設定で変更が可能
 
 ## Uninstall
@@ -86,7 +86,7 @@ $ sh ./cfn/_remove.sh
 
 ## Limitations
 - FargateへのAutoScaling設定や、R53の設定は行なっていない
-- taskdef.jsonはCodeBuildで動的に生成し、BuildArtifactに含めるとCodeDeployでInternalErrorになるのでcfn/_deploy.shで作成している
+- taskdef.jsonはCodeBuildで動的に生成し、BuildArtifactに含めるとCodeDeployでInternalErrorになるのでcfn/_deploy.shで作成している
 - Blue/Green時のトラフィックのトラフィックの再ルーティングまでの時間の設定を変更したい場合はアプリケーションのデプロイ設定を変更して行う
 
 ## Versioning
