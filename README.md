@@ -6,6 +6,12 @@ CodePipelineを利用して CodeCommit → CodeBuild → CodeDeploy の流れで
 
 ## Install
 ### Preparation
+#### MicroScannerのトークン取得
+```
+docker run --rm -it aquasec/microscanner --register <email address>
+```
+コマンド実行後登録したメールアドレスにトークンが飛んでくる
+#### 設定変更
 cfn/_variable.shを自分のインストールしたい環境の設定に合わせて編集する
 
 ### Create Resource (CFn)
