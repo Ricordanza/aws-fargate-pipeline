@@ -25,6 +25,7 @@ aws cloudformation create-stack \
         ParameterKey=Stage,ParameterValue=$STAGE \
         ParameterKey=AppName,ParameterValue=$NAME \
         ParameterKey=BranchName,ParameterValue=$BRANCH \
+        ParameterKey=AquaMicroScannerToken,ParameterValue=$AQUA_TOKEN \
     --capabilities 'CAPABILITY_NAMED_IAM'
 
 echo "create resource operating ..."

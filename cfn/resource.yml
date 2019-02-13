@@ -18,14 +18,9 @@ Parameters:
     Default: master
     Description: Use branch name
 
-  Author:
-    Type: String
-    Default: "ao"
-    Description: System author
-
   AquaMicroScannerToken:
     Type: String
-    Default: "Mzg4ZTRkMGI1NTQ3"
+    Default: ""
     Description: Aqua MicroScanner's token
 
   Vpc: 
@@ -59,7 +54,7 @@ Parameters:
     Description: System VPC End Point
 
   VpcCider: 
-    Type: "String"
+    Type: String
     Default: ""
     Description: System vpc CIDER
 
