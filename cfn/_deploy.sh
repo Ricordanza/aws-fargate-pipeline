@@ -4,19 +4,6 @@ pushd `dirname $0`
 # variable
 source ./_variable.sh
 
-echo "create vpc"
-aws cloudformation create-stack \
-    --stack-name $SYS_NAME-vpc \
-    --template-body file://vpc.yml \
-    --parameters \
-        ParameterKey=Stage,ParameterValue=$STAGE \
-        ParameterKey=AppName,ParameterValue=$NAME \
-
-echo "create vpc operating ..."
-aws cloudformation wait stack-create-complete --stack-name $SYS_NAME-vpc
-
-sleep 1
-
 echo "create resource"
 aws cloudformation create-stack \
     --stack-name $SYS_NAME-resource \
@@ -26,6 +13,10 @@ aws cloudformation create-stack \
         ParameterKey=AppName,ParameterValue=$NAME \
         ParameterKey=BranchName,ParameterValue=$BRANCH \
         ParameterKey=AquaMicroScannerToken,ParameterValue=$AQUA_TOKEN \
+        ParameterKey=Vpc,ParameterValue=$VPC \
+        ParameterKey=PublicSubnet1,ParameterValue=$PUB_SUB_1 \
+        ParameterKey=PublicSubnet2,ParameterValue=$PUB_SUB_2 \
+        ParameterKey=VpcCider,ParameterValue=$VPC_CIDER \
     --capabilities 'CAPABILITY_NAMED_IAM'
 
 echo "create resource operating ..."

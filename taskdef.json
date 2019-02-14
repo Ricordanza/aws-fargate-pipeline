@@ -1,5 +1,5 @@
 {
-  "executionRoleArn": "arn:aws:iam::495109114833:role/cicd-f-dev-task",
+  "executionRoleArn": "arn:aws:iam::495109114833:role/ao-test-dev-task",
   "containerDefinitions": [
     {
       "name": "web",

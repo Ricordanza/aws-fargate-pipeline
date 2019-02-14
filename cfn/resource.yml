@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Fargate CI/CD sample resource component.
+#Description: Fargate CI/CD sample resource component.
+Description: TEST COMPONENTS
 
 Parameters:
 
@@ -38,21 +39,6 @@ Parameters:
     Default: ""
     Description: System Public Subnet 2
 
-  PrivateSubnet1: 
-    Type: String
-    Default: ""
-    Description: System Private Subnet 1
-
-  PrivateSubnet2: 
-    Type: String
-    Default: ""
-    Description: System Private Subnet 2
-
-  VpcEndPoint: 
-    Type: String
-    Default: ""
-    Description: System VPC End Point
-
   VpcCider: 
     Type: String
     Default: ""
@@ -62,9 +48,6 @@ Conditions:
   IsVpcParameter: !Not [!Equals [!Ref Vpc, ""]]
   IsPublicSubnet1Parameter: !Not [!Equals [!Ref PublicSubnet1, ""]]
   IsPublicSubnet2Parameter: !Not [!Equals [!Ref PublicSubnet2, ""]]
-  IsPrivateSubnet1Parameter: !Not [!Equals [!Ref PrivateSubnet1, ""]]
-  IsPrivateSubnet2Parameter: !Not [!Equals [!Ref PrivateSubnet2, ""]]
-  IsVpcEndPointParameter: !Not [!Equals [!Ref VpcEndPoint, ""]]
   IsVpcCiderParameter: !Not [!Equals [!Ref VpcCider, ""]]
 
 Resources:
