@@ -210,21 +210,25 @@ Resources:
   # VPC Endpoint
   #############################################
 
-  VpcEndPoint1:
+  VpcS3EndPoint:
     Type: AWS::EC2::VPCEndpoint
     Properties: 
       VpcId: !Ref Vpc
       RouteTableIds:
         - !Ref PrivateRouteTable1
+        - !Ref PrivateRouteTable2
       ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
 
-  VpcEndPoint2:
+  VpcEcrDkrEndPoint:
     Type: AWS::EC2::VPCEndpoint
     Properties: 
       VpcId: !Ref Vpc
-      RouteTableIds:
-        - !Ref PrivateRouteTable2
-      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ecr.dkr
+      VpcEndpointType: Interface
 
 Outputs:
 

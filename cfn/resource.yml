@@ -1,6 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-#Description: Fargate CI/CD sample resource component.
-Description: TEST COMPONENTS
+Description: Fargate CI/CD sample resource component.
 
 Parameters:
 

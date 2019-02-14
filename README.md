@@ -48,8 +48,8 @@ https://ap-northeast-1.console.aws.amazon.com/ecs/home?region={$AWS_DEFAULT_REGI
 	- Service role for CodeDeploy : {$NAME}-{$STAGE}-deploy
 1. Next stepボタンを押下
 1. Configure networkで以下の項目を設定（記載していない項目は初期値でOK）
-	- Cluster VPC : {$NAME}-{$STAGE}-vpc
-	- Subnets : {$NAME}-{$STAGE}-public-1、{$NAME}-{$STAGE}-public-2
+	- Cluster VPC : cfn/_variable.shで指定したVPC
+	- Subnets : cfn/_variable.shで指定したPUB_SUB_1とPUB_SUB_2
 	- Security groups : {$NAME}-{$STAGE}-service-sg
 1. Load balancingで以下の項目を設定（記載していない項目は初期値でOK）
 	- Load balancer type : Application Load Balancer
