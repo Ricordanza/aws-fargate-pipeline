@@ -15,6 +15,6 @@ export VPC_CIDER=""
 
 # No editable
 if [ -n "$USE_PROFILE" ]; then
-    export AWS_DEFAULT_PROFILE=$3
+    export AWS_DEFAULT_PROFILE=$USE_PROFILE
 fi
 export SYS_NAME=$NAME-$STAGE
