@@ -4,7 +4,6 @@ export NAME="cicd-f"
 export BRANCH="master"
 export AWS_DEFAULT_REGION="ap-northeast-1"
 export AQUA_TOKEN=""
-export USE_PROFILE=""
 
 # Optional if VPC linked created
 export USE_PROFILE=""
